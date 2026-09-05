@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""网页服务。原站 stslinks.pages.dev 的分类筛选 + 小鲸鱼 AI 搜。"""
+"""网页：收藏夹搜索引擎。"""
 from __future__ import annotations
 
 from pathlib import Path

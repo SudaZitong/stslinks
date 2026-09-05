@@ -1,67 +1,47 @@
 const I18N = {
   zh: {
-    subtitle: "原站 stslinks.pages.dev · 分类筛选 + 小鲸鱼",
+    searchPh: "要找什么？像问搜索引擎一样说",
+    search: "搜索",
+    local: "仅本地",
     add: "添加",
     settings: "设置",
-    clickCats: "点击分类以显示对应的内容：",
-    logic: "多选逻辑：",
-    and: "并且",
-    or: "或者",
-    showAll: "显示所有",
-    hideAll: "隐藏所有",
-    searchPh: "搜索标题 / 网址，或用小鲸鱼描述需求",
-    local: "本地搜",
-    ai: "小鲸鱼搜",
+    empty: "在收藏里搜。额度不够会自动改成本地匹配。",
     editTitle: "链接",
     fTitle: "标题",
-    fTags: "标签（| 或逗号分隔）",
+    fTags: "标签",
     fDesc: "描述",
     cancel: "取消",
     save: "保存",
-    setHint: "任意 OpenAI 兼容接口。换模型只改 base_url、key、model。",
-    thinking: "思考过程（DeepSeek 等）",
-    none: "没有符合条件的链接。点「显示所有」或换分类。",
-    whale: "小鲸鱼：",
+    setHint: "任意 OpenAI 兼容接口。换模型改 base_url、key、model。",
+    thinking: "思考过程",
+    none: "没有结果。换个说法，或把站点加进收藏。",
     keySet: "已保存密钥",
-    keyEmpty: "还没有密钥",
+    keyEmpty: "还没有密钥，搜索会走本地",
+    searching: "正在搜…",
   },
   en: {
-    subtitle: "from stslinks.pages.dev · tags + whale search",
+    searchPh: "What do you need?",
+    search: "Search",
+    local: "Local only",
     add: "Add",
     settings: "Settings",
-    clickCats: "Click a category:",
-    logic: "Combine:",
-    and: "AND",
-    or: "OR",
-    showAll: "Show all",
-    hideAll: "Hide all",
-    searchPh: "Search title/url, or ask the whale",
-    local: "Local",
-    ai: "Whale",
+    empty: "Search your bookmarks. Falls back to local if the API is out of credit.",
     editTitle: "Link",
     fTitle: "Title",
-    fTags: "Tags (| or comma)",
+    fTags: "Tags",
     fDesc: "Notes",
     cancel: "Cancel",
     save: "Save",
-    setHint: "Any OpenAI-compatible API. Switch provider via base_url + key + model.",
-    thinking: "Thinking traces (DeepSeek etc.)",
-    none: "No links. Try Show all or another tag.",
-    whale: "Whale: ",
+    setHint: "Any OpenAI-compatible API.",
+    thinking: "Thinking traces",
+    none: "Nothing found. Try another query, or add the site.",
     keySet: "Key saved",
-    keyEmpty: "No API key yet",
+    keyEmpty: "No API key; search is local",
+    searching: "Searching…",
   },
 };
 
-const state = {
-  locale: localStorage.getItem("locale") || "zh",
-  items: [],
-  tags: [],
-  selected: new Set(),
-  mode: "and",
-  query: "",
-  aiItems: null,
-};
+const state = { locale: localStorage.getItem("locale") || "zh", items: [] };
 
 function t(key) {
   return (I18N[state.locale] || I18N.zh)[key] || key;
@@ -81,155 +61,102 @@ function applyI18n() {
 function memorial() {
   const d = new Date();
   const key = `${d.getMonth() + 1}-${d.getDate()}`;
-  const days = ["4-4", "5-12", "9-3", "12-13", "12-17", "9-18", "7-7"];
-  document.documentElement.classList.toggle("zh-memorial", days.includes(key));
+  document.documentElement.classList.toggle(
+    "zh-memorial",
+    ["4-4", "5-12", "9-3", "12-13", "12-17", "9-18", "7-7"].includes(key),
+  );
 }
 
-async function load() {
-  const res = await fetch("/api/links");
-  const data = await res.json();
-  state.items = data.items;
-  state.tags = data.tags;
-  renderChips();
-  renderLinks();
-}
-
-function renderChips() {
-  const box = document.getElementById("chips");
-  box.innerHTML = "";
-  for (const tag of state.tags) {
-    const wrap = document.createElement("div");
-    wrap.className = "chip";
-    const id = "tag-" + encodeURIComponent(tag);
-    wrap.innerHTML = `<input type="checkbox" id="${id}"><label for="${id}"></label>`;
-    wrap.querySelector("label").textContent = tag;
-    wrap.querySelector("input").checked = state.selected.has(tag);
-    wrap.querySelector("input").addEventListener("change", (e) => {
-      if (e.target.checked) state.selected.add(tag);
-      else state.selected.delete(tag);
-      state.aiItems = null;
-      renderLinks();
-    });
-    box.appendChild(wrap);
-  }
-}
-
-function matchLink(item) {
-  const q = state.query.trim().toLowerCase();
-  if (q) {
-    const blob = `${item.title} ${item.url} ${item.desc} ${item.tags.join(" ")}`.toLowerCase();
-    if (!blob.includes(q)) return false;
-  }
-  const selected = [...state.selected];
-  if (!selected.length) return false;
-  const have = new Set(item.tags);
-  if (state.mode === "and") return selected.every((t) => have.has(t));
-  return selected.some((t) => have.has(t));
-}
-
-function renderLinks() {
-  const root = document.getElementById("links");
-  const source = state.aiItems || state.items;
-  const shown = state.aiItems ? source : source.filter(matchLink);
-  root.innerHTML = "";
-  if (!shown.length) {
-    const p = document.createElement("p");
-    p.style.margin = "1rem";
-    p.textContent = t("none");
-    root.appendChild(p);
-    return;
-  }
-  for (const item of shown) {
-    const a = document.createElement("a");
-    a.className = "link on";
-    a.href = item.url;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.textContent = item.title;
-    const ed = document.createElement("span");
-    ed.className = "edit";
-    ed.textContent = "✎";
-    ed.title = t("editTitle");
-    ed.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openEdit(item);
-    });
-    a.appendChild(ed);
-    a.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      if (confirm(`${item.title}\n${item.url}`)) {
-        navigator.clipboard.writeText(item.url);
-      }
-    });
-    root.appendChild(a);
-  }
+function setHome(on) {
+  document.body.classList.toggle("home", on);
+  document.getElementById("empty").hidden = !on;
 }
 
 function setStatus(msg) {
   document.getElementById("status").textContent = msg || "";
 }
 
-document.getElementById("showall").onclick = () => {
-  state.selected = new Set(state.tags);
-  state.mode = "or";
-  document.querySelector('input[name="mode"][value="or"]').checked = true;
-  state.aiItems = null;
-  renderChips();
-  renderLinks();
-};
-document.getElementById("hiddenall").onclick = () => {
-  state.selected = new Set();
-  state.mode = "and";
-  document.querySelector('input[name="mode"][value="and"]').checked = true;
-  state.aiItems = null;
-  renderChips();
-  renderLinks();
-};
-document.querySelectorAll('input[name="mode"]').forEach((el) => {
-  el.addEventListener("change", () => {
-    state.mode = document.querySelector('input[name="mode"]:checked').value;
-    state.aiItems = null;
-    renderLinks();
-  });
-});
-
-document.getElementById("search-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  state.query = document.getElementById("q").value;
-  state.aiItems = null;
-  if (!state.selected.size) {
-    state.selected = new Set(state.tags);
-    state.mode = "or";
-    document.querySelector('input[name="mode"][value="or"]').checked = true;
-    renderChips();
-  }
-  renderLinks();
-});
-
-document.getElementById("ai-search").onclick = async () => {
-  const query = document.getElementById("q").value.trim();
-  if (!query) {
-    setStatus(t("searchPh"));
+function render(items, msg) {
+  const root = document.getElementById("results");
+  root.innerHTML = "";
+  setStatus(msg || "");
+  setHome(false);
+  if (!items.length) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = t("none");
+    root.appendChild(p);
     return;
   }
-  setStatus("…");
+  for (const item of items) {
+    const div = document.createElement("article");
+    div.className = "hit";
+    const url = document.createElement("div");
+    url.className = "url";
+    url.textContent = item.url;
+    const a = document.createElement("a");
+    a.className = "title";
+    a.href = item.url;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    a.textContent = item.title;
+    const ed = document.createElement("button");
+    ed.className = "edit";
+    ed.type = "button";
+    ed.textContent = "编辑";
+    ed.addEventListener("click", () => openEdit(item));
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    desc.textContent = item.desc || "";
+    const tags = document.createElement("div");
+    tags.className = "tags";
+    for (const tag of item.tags || []) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = tag;
+      b.addEventListener("click", () => runSearch(tag, true));
+      tags.appendChild(b);
+    }
+    div.append(url, a, ed, desc, tags);
+    root.appendChild(div);
+  }
+}
+
+async function runSearch(query, local) {
+  query = (query || "").trim();
+  if (!query) {
+    setHome(true);
+    document.getElementById("results").innerHTML = "";
+    setStatus("");
+    return;
+  }
+  document.getElementById("q").value = query;
+  setStatus(t("searching"));
   const res = await fetch("/api/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, local: false }),
+    body: JSON.stringify({ query, local: !!local }),
   });
   const data = await res.json();
-  state.aiItems = data.items || [];
-  setStatus((t("whale") + (data.msg || "")).trim());
-  renderLinks();
-};
+  state.items = data.items || [];
+  render(state.items, data.msg || "");
+}
 
+document.getElementById("search-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  runSearch(document.getElementById("q").value, false);
+});
+document.getElementById("btn-local").onclick = () => {
+  runSearch(document.getElementById("q").value, true);
+};
+document.getElementById("btn-home").onclick = () => {
+  document.getElementById("q").value = "";
+  runSearch("", true);
+};
 document.getElementById("btn-lang").onclick = () => {
   state.locale = state.locale === "zh" ? "en" : "zh";
   localStorage.setItem("locale", state.locale);
   applyI18n();
-  renderLinks();
 };
 
 const editDlg = document.getElementById("edit-dlg");
@@ -255,21 +182,12 @@ editForm.addEventListener("submit", async (e) => {
     tags: editForm.tags.value,
     desc: editForm.desc.value,
   };
-  if (editingId) {
-    await fetch(`/api/links/${editingId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } else {
-    await fetch("/api/links", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  }
+  const url = editingId ? `/api/links/${editingId}` : "/api/links";
+  const method = editingId ? "PUT" : "POST";
+  await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   editDlg.close();
-  await load();
+  const q = document.getElementById("q").value.trim();
+  if (q) runSearch(q, true);
 });
 
 const setDlg = document.getElementById("set-dlg");
@@ -303,4 +221,4 @@ setForm.addEventListener("submit", async (e) => {
 
 memorial();
 applyI18n();
-load();
+setHome(true);

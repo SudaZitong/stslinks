@@ -8,57 +8,50 @@ def local_search(query: str, tag: str | None = None) -> dict:
     return {
         "ok": bool(hits),
         "mode": "local",
-        "msg": f"本地命中 {len(hits)} 条" if hits else "本地没有找到，可以试试 AI 搜。",
+        "msg": f"本地 {len(hits)} 条" if hits else "收藏里没有类似的。换个说法，或去浏览器搜。",
         "tags": [tag] if tag else [],
         "items": hits,
     }
 
 
 def ai_search(query: str, on_think=None) -> dict:
-    tags_res = ai.pick_tags(query, on_think=on_think)
-    if not tags_res["ok"]:
-        fallback = db.keyword_search(query)
-        if fallback:
+    """先本地打分，有额度再让模型从候选里挑。没额度就只出本地结果。"""
+    local_hits = db.keyword_search(query)
+    try:
+        pool = local_hits[:40]
+        if len(pool) < 5:
+            tags_res = ai.pick_tags(query, on_think=on_think)
+            extra = db.filter_by_tags(tags_res.get("tags") or [], tags_res.get("mode") or "or")
+            seen = {x["id"] for x in pool}
+            for item in extra:
+                if item["id"] not in seen:
+                    pool.append(item)
+                    seen.add(item["id"])
+        if not pool:
             return {
-                "ok": True,
-                "mode": "local-fallback",
-                "msg": tags_res["msg"] or "标签没对上，改用关键词搜了。",
+                "ok": False,
+                "mode": "ai",
+                "msg": "收藏里对不上。可以换关键词，或把新站添加进来。",
                 "tags": [],
-                "items": fallback,
+                "items": [],
             }
-        return {
-            "ok": False,
-            "mode": "ai",
-            "msg": tags_res["msg"] or "没有匹配的标签。",
-            "tags": [],
-            "items": [],
-        }
-    candidates = db.filter_by_tags(tags_res["tags"], tags_res["mode"])
-    if not candidates:
-        fallback = db.keyword_search(query)
-        return {
-            "ok": bool(fallback),
-            "mode": "local-fallback",
-            "msg": "标签下没有条目，改用关键词搜了。" if fallback else tags_res["msg"],
-            "tags": tags_res["tags"],
-            "items": fallback,
-        }
-    links_res = ai.pick_links(query, candidates, on_think=on_think)
-    by_id = {c["id"]: c for c in candidates}
-    items = [by_id[i] for i in links_res["links"] if i in by_id]
-    if not items:
+        picked = ai.pick_links(query, pool, on_think=on_think)
+        by_id = {c["id"]: c for c in pool}
+        items = [by_id[i] for i in picked["links"] if i in by_id]
+        if not items:
+            items = pool[:15]
         return {
             "ok": True,
-            "mode": "ai-tags",
-            "msg": links_res["msg"] or "链接没挑出来，先给你这批标签下的全部条目。",
-            "tags": tags_res["tags"],
-            "items": candidates,
+            "mode": "ai",
+            "msg": picked.get("msg") or "",
+            "tags": [],
+            "items": items,
         }
-    return {
-        "ok": True,
-        "mode": "ai",
-        "msg": links_res["msg"] or tags_res["msg"],
-        "tags": tags_res["tags"],
-        "tag_mode": tags_res["mode"],
-        "items": items,
-    }
+    except ai.AiError as exc:
+        return {
+            "ok": bool(local_hits),
+            "mode": "local-fallback",
+            "msg": f"{exc} 先给你本地结果。",
+            "tags": [],
+            "items": local_hits,
+        }

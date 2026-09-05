@@ -152,14 +152,45 @@ def filter_by_tags(tags: list[str], mode: str = "or") -> list[dict]:
     return out
 
 
-def keyword_search(query: str, tag: str | None = None) -> list[dict]:
+def _tokens(query: str) -> list[str]:
+    import re
+
     q = (query or "").strip().lower()
+    if not q:
+        return []
+    parts = [p for p in re.split(r"[\s,，|+/]+", q) if p]
+    if q not in parts:
+        parts.insert(0, q)
+    return parts
+
+
+def keyword_search(query: str, tag: str | None = None, limit: int = 80) -> list[dict]:
+    tokens = _tokens(query)
     tag = (tag or "").strip()
-    out = []
+    scored = []
     for link in all_links():
         if tag and tag not in link["tags"]:
             continue
-        blob = " ".join([link["title"], link["desc"], link["url"], " ".join(link["tags"])]).lower()
-        if not q or q in blob:
-            out.append(link)
-    return out
+        title = (link["title"] or "").lower()
+        desc = (link["desc"] or "").lower()
+        url = (link["url"] or "").lower()
+        tags = " ".join(link["tags"]).lower()
+        if not tokens:
+            scored.append((0, link))
+            continue
+        score = 0
+        for tok in tokens:
+            if tok == title or tok in title:
+                score += 16 if tok == title.lower() or title.startswith(tok) else 10
+            if tok in tags:
+                score += 8
+            if tok in desc:
+                score += 5
+            if tok in url:
+                score += 4
+        if score > 0:
+            scored.append((score, link))
+    scored.sort(key=lambda x: (-x[0], -x[1]["id"]))
+    if not tokens:
+        return [x[1] for x in scored]
+    return [x[1] for x in scored[:limit]]

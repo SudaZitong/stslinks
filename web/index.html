@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TukJiu's Dream</title>
+  <title>TukJiu Search</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header>
-    <div class="brand">
-      <h1>TukJiu's Dream</h1>
-      <p class="sub" data-i18n="subtitle">原站 stslinks.pages.dev · 分类筛选 + 小鲸鱼</p>
-    </div>
+    <button type="button" id="btn-home" class="logo">TukJiu</button>
+    <form id="search-form">
+      <input id="q" type="search" autofocus autocomplete="off" data-i18n-placeholder="searchPh">
+      <button type="submit" data-i18n="search">搜索</button>
+      <button type="button" id="btn-local" class="ghost" data-i18n="local">仅本地</button>
+    </form>
     <div class="toolbar">
       <button type="button" id="btn-lang">EN</button>
       <button type="button" id="btn-add" data-i18n="add">添加</button>
@@ -19,36 +21,20 @@
     </div>
   </header>
 
-  <div id="selector">
-    <b data-i18n="clickCats">点击分类以显示对应的内容：</b>
-    <div id="chips"></div>
-    <p class="logic">
-      <b data-i18n="logic">多选逻辑：</b>
-      <label><input type="radio" name="mode" value="and" checked> <span data-i18n="and">并且</span></label>
-      <label><input type="radio" name="mode" value="or"> <span data-i18n="or">或者</span></label>
-      <button type="button" id="showall" data-i18n="showAll">显示所有</button>
-      <button type="button" id="hiddenall" data-i18n="hideAll">隐藏所有</button>
-    </p>
-    <form id="search-form">
-      <input id="q" type="search" autocomplete="off" data-i18n-placeholder="searchPh">
-      <button type="submit" data-i18n="local">本地搜</button>
-      <button type="button" id="ai-search" data-i18n="ai">小鲸鱼搜</button>
-    </form>
-    <p id="status"></p>
-  </div>
-
-  <main id="links"></main>
+  <p id="status"></p>
+  <main id="results"></main>
+  <p id="empty" class="hint" hidden data-i18n="empty">在收藏里搜。额度不够会自动改本地匹配。</p>
 
   <dialog id="edit-dlg">
     <form method="dialog" id="edit-form">
-      <h3 id="edit-title" data-i18n="editTitle">链接</h3>
+      <h3 data-i18n="editTitle">链接</h3>
       <label><span data-i18n="fTitle">标题</span><input name="title" required></label>
       <label><span>URL</span><input name="url" required></label>
-      <label><span data-i18n="fTags">标签（| 或逗号分隔）</span><input name="tags"></label>
+      <label><span data-i18n="fTags">标签</span><input name="tags"></label>
       <label><span data-i18n="fDesc">描述</span><textarea name="desc" rows="3"></textarea></label>
       <menu>
         <button value="cancel" data-i18n="cancel">取消</button>
-        <button value="ok" id="edit-save" data-i18n="save">保存</button>
+        <button value="ok" data-i18n="save">保存</button>
       </menu>
     </form>
   </dialog>
@@ -56,11 +42,11 @@
   <dialog id="set-dlg">
     <form method="dialog" id="set-form">
       <h3 data-i18n="settings">设置</h3>
-      <p class="hint" data-i18n="setHint">任意 OpenAI 兼容接口。换模型只改 base_url、key、model。</p>
+      <p class="hint" data-i18n="setHint">任意 OpenAI 兼容接口。换模型改 base_url、key、model。</p>
       <label>Base URL<input name="base_url" placeholder="https://api.deepseek.com"></label>
-      <label>API Key<input name="api_key" type="password" autocomplete="off" placeholder=""></label>
+      <label>API Key<input name="api_key" type="password" autocomplete="off"></label>
       <label>Model<input name="model" placeholder="deepseek-v4-flash"></label>
-      <label class="check"><input type="checkbox" name="thinking"> <span data-i18n="thinking">思考过程（DeepSeek 等）</span></label>
+      <label class="check"><input type="checkbox" name="thinking"> <span data-i18n="thinking">思考过程</span></label>
       <p id="key-state"></p>
       <menu>
         <button value="cancel" data-i18n="cancel">取消</button>

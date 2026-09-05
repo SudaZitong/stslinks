@@ -128,6 +128,7 @@ def main(argv=None) -> int:
     p_r.add_argument("id", type=int)
 
     p_c = sub.add_parser("config", help="查看配置（不含完整密钥）")
+    sub.add_parser("recat", help="整理标签和空描述（不调模型）")
 
     args = parser.parse_args(argv)
     if not args.cmd:
@@ -144,6 +145,13 @@ def main(argv=None) -> int:
         return cmd_rm(args.id)
     if args.cmd == "config":
         show(str(config.masked()))
+        return 0
+    if args.cmd == "recat":
+        from fav.classify import recategorize
+
+        info = recategorize(write=True)
+        show(f"更新 {info['changed']} 条，标签 {info['tag_count']} 个")
+        show("、".join(info["tags"]))
         return 0
     return 0
 

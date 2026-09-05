@@ -49,8 +49,25 @@ def _collect(on_event):
     return trace, handle
 
 
+def public_result(result: dict) -> dict:
+    """给前端的结果：思考保留，提示词和模型 JSON 不带出去。"""
+    out = dict(result)
+    out["trace"] = [
+        {
+            "layer": step.get("layer"),
+            "title": step.get("title"),
+            "provider": step.get("provider"),
+            "model": step.get("model"),
+            "think": step.get("think") or "",
+            "total_tokens": step.get("total_tokens"),
+        }
+        for step in (result.get("trace") or [])
+    ]
+    return out
+
+
 def ai_search(query: str, on_event=None) -> dict:
-    """原设计：短标签第一层收窄，长描述第二层筛选。提示词和思考全文回传。"""
+    """原设计：短标签第一层收窄，长描述第二层筛选。"""
     trace, handle = _collect(on_event)
     tags_res = ai.pick_tags(query, on_event=handle)
     if not tags_res["ok"]:

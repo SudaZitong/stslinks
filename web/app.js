@@ -12,7 +12,7 @@ const I18N = {
     fDesc: "描述",
     cancel: "取消",
     save: "保存",
-    setHint: "可加多层接口。当前层先用，失败再试下一层。搜索时提示词和思考全文展示。",
+    setHint: "可加多层接口。当前层先用，失败再试下一层。",
     active: "当前层",
     thinking: "思考过程",
     none: "没有结果。换个说法，或把站点加进收藏。",
@@ -20,15 +20,10 @@ const I18N = {
     keySet: "已保存密钥",
     keyEmpty: "还没有密钥，搜索会走本地",
     searching: "正在搜…",
-    traceTitle: "小鲸鱼运算",
-    traceNote: "提示词和思考全文展示，不做隐藏。",
-    promptLabel: "发给模型的提示词（完整，未隐藏）",
-    thinkLabel: "思考",
-    outLabel: "输出",
+    traceTitle: "思考中",
+    traceDone: "思考过程",
     layerTags: "第一层 · 短标签",
     layerLinks: "第二层 · 长描述",
-    tokens: "tokens",
-    done: "算完了",
   },
   en: {
     searchPh: "What do you need?",
@@ -43,7 +38,7 @@ const I18N = {
     fDesc: "Notes",
     cancel: "Cancel",
     save: "Save",
-    setHint: "Multiple OpenAI-compatible layers. Active first, then fallback. Prompts and thinking are shown in full.",
+    setHint: "Multiple OpenAI-compatible layers. Active first, then fallback.",
     active: "Active",
     thinking: "Thinking traces",
     none: "Nothing found. Try another query, or add the site.",
@@ -51,15 +46,10 @@ const I18N = {
     keySet: "Key saved",
     keyEmpty: "No API key; search is local",
     searching: "Searching…",
-    traceTitle: "Whale computing",
-    traceNote: "Prompts and thinking are shown in full. Nothing is hidden.",
-    promptLabel: "Prompt sent to the model (complete, unredacted)",
-    thinkLabel: "Thinking",
-    outLabel: "Output",
+    traceTitle: "Thinking",
+    traceDone: "Thinking",
     layerTags: "Layer 1 · tags",
     layerLinks: "Layer 2 · descriptions",
-    tokens: "tokens",
-    done: "Done",
   },
 };
 
@@ -116,121 +106,54 @@ function setPhase(text) {
 function resetTrace(show) {
   const el = document.getElementById("trace");
   const body = document.getElementById("trace-body");
-  body.innerHTML = "";
+  body.textContent = "";
   el.hidden = !show;
+  el.open = !!show;
   el.classList.toggle("running", !!show);
+  el._hasThink = false;
+  document.getElementById("trace-label").textContent = t("traceTitle");
   setPhase(show ? t("searching") : "");
-  el._layers = {};
-  el._current = null;
 }
 
-function layerBox(ev) {
-  const root = document.getElementById("trace");
-  const key = String(ev.layer || "x") + ":" + (ev.provider || "") + ":" + (root._layers && Object.keys(root._layers).length);
-  const body = document.getElementById("trace-body");
-  const sec = document.createElement("section");
-  sec.className = "trace-layer";
-  const h = document.createElement("h4");
-  const title = ev.title || (ev.layer === "links" ? t("layerLinks") : t("layerTags"));
-  const meta = [ev.provider, ev.model].filter(Boolean).join(" / ");
-  h.textContent = meta ? `${title} · ${meta}` : title;
-  const details = document.createElement("details");
-  details.open = true;
-  const sum = document.createElement("summary");
-  sum.textContent = t("promptLabel");
-  const sys = document.createElement("pre");
-  sys.className = "trace-sys";
-  sys.textContent = "SYSTEM\n" + (ev.system || "");
-  const usr = document.createElement("pre");
-  usr.className = "trace-usr";
-  usr.textContent = "USER\n" + (ev.user || "");
-  details.append(sum, sys, usr);
-  const thinkWrap = document.createElement("div");
-  thinkWrap.className = "trace-think";
-  thinkWrap.hidden = true;
-  const thinkLab = document.createElement("div");
-  thinkLab.className = "trace-label";
-  thinkLab.textContent = t("thinkLabel");
-  const think = document.createElement("pre");
-  thinkWrap.append(thinkLab, think);
-  const outWrap = document.createElement("div");
-  outWrap.className = "trace-out";
-  outWrap.hidden = true;
-  const outLab = document.createElement("div");
-  outLab.className = "trace-label";
-  outLab.textContent = t("outLabel");
-  const out = document.createElement("pre");
-  outWrap.append(outLab, out);
-  const usage = document.createElement("div");
-  usage.className = "trace-label";
-  sec.append(h, details, thinkWrap, outWrap, usage);
-  body.appendChild(sec);
-  const box = { think, thinkWrap, out, outWrap, usage, el: sec };
-  root._layers[key] = box;
-  root._current = box;
-  think.scrollTop = think.scrollHeight;
-  return box;
-}
-
-function currentLayer() {
-  const root = document.getElementById("trace");
-  return root._current;
-}
-
-function appendPre(pre, wrap, chunk) {
-  wrap.hidden = false;
-  pre.textContent += chunk || "";
-  pre.scrollTop = pre.scrollHeight;
+function foldTrace() {
+  const el = document.getElementById("trace");
+  el.classList.remove("running");
+  if (!el._hasThink) {
+    el.hidden = true;
+    el.open = false;
+    setPhase("");
+    return;
+  }
+  el.hidden = false;
+  el.open = false;
+  document.getElementById("trace-label").textContent = t("traceDone");
+  setPhase("");
 }
 
 function handleTrace(ev) {
-  const kind = ev.type;
-  if (kind === "status" && ev.text) {
+  const el = document.getElementById("trace");
+  const body = document.getElementById("trace-body");
+  if (ev.type === "status" && ev.text) {
     setPhase(ev.text);
     setStatus(ev.text);
     return;
   }
-  if (kind === "prompt") {
-    document.getElementById("trace").hidden = false;
-    layerBox(ev);
-    setPhase(ev.title || t("searching"));
+  if (ev.type === "prompt") {
+    el.hidden = false;
+    el.open = true;
+    setPhase(ev.title || (ev.layer === "links" ? t("layerLinks") : t("layerTags")));
     return;
   }
-  if (kind === "think") {
-    const box = currentLayer();
-    if (box) appendPre(box.think, box.thinkWrap, ev.text);
+  if (ev.type === "think") {
+    el.hidden = false;
+    el.open = true;
+    el._hasThink = true;
+    body.textContent += ev.text || "";
+    body.scrollTop = body.scrollHeight;
     return;
   }
-  if (kind === "content") {
-    const box = currentLayer();
-    if (box) appendPre(box.out, box.outWrap, ev.text);
-    return;
-  }
-  if (kind === "usage") {
-    const box = currentLayer();
-    if (box && ev.total_tokens != null) {
-      box.usage.textContent = `${ev.total_tokens} ${t("tokens")}`;
-    }
-    return;
-  }
-  if (kind === "fallback") {
-    const p = document.createElement("p");
-    p.className = "trace-fallback";
-    p.textContent = `${ev.provider || ""} 失败${ev.next ? "，试 " + ev.next : ""}：${ev.error || ""}`;
-    document.getElementById("trace-body").appendChild(p);
-    setStatus(p.textContent);
-  }
-}
-
-function paintTrace(trace) {
-  if (!trace || !trace.length) return;
-  resetTrace(true);
-  document.getElementById("trace").classList.remove("running");
-  for (const step of trace) {
-    handleTrace({ type: "prompt", ...step });
-    if (step.think) handleTrace({ type: "think", text: step.think });
-    if (step.content) handleTrace({ type: "content", text: step.content });
-    if (step.total_tokens != null) handleTrace({ type: "usage", total_tokens: step.total_tokens });
+  if (ev.type === "fallback") {
+    setStatus(`${ev.provider || ""} 失败${ev.next ? "，试 " + ev.next : ""}：${ev.error || ""}`);
   }
 }
 
@@ -274,12 +197,12 @@ function render(items, msg) {
     root.appendChild(p);
     return;
   }
-  for (const item of items) {
+  items.forEach((item, i) => {
     const div = document.createElement("article");
     div.className = "hit";
-    const url = document.createElement("div");
-    url.className = "url";
-    url.textContent = item.url;
+    div.style.animationDelay = `${i * 45}ms`;
+    const head = document.createElement("div");
+    head.className = "head";
     const a = document.createElement("a");
     a.className = "title";
     a.href = item.url;
@@ -291,6 +214,10 @@ function render(items, msg) {
     ed.type = "button";
     ed.textContent = "编辑";
     ed.addEventListener("click", () => openEdit(item));
+    head.append(a, ed);
+    const url = document.createElement("div");
+    url.className = "url";
+    url.textContent = item.url;
     const desc = document.createElement("div");
     desc.className = "desc";
     desc.textContent = item.desc || "";
@@ -303,9 +230,9 @@ function render(items, msg) {
       b.addEventListener("click", () => runSearch(tag, true));
       tags.appendChild(b);
     }
-    div.append(url, a, ed, desc, tags);
+    div.append(head, url, desc, tags);
     root.appendChild(div);
-  }
+  });
 }
 
 let searchAbort = null;
@@ -338,8 +265,8 @@ async function runSearch(query, local) {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
+      foldTrace();
       setStatus(typeof data.detail === "string" ? data.detail : t("fail"));
-      document.getElementById("trace").classList.remove("running");
       return;
     }
     let result = null;
@@ -354,25 +281,25 @@ async function runSearch(query, local) {
       }
       if (!local) handleTrace(ev);
     }, ac.signal);
-    document.getElementById("trace").classList.remove("running");
     if (!result) {
+      foldTrace();
       setStatus(t("fail"));
       return;
     }
     if (result.error) {
-      setPhase("");
+      foldTrace();
       setStatus(result.error);
       return;
     }
     if (local) resetTrace(false);
-    else setPhase(t("done"));
+    else foldTrace();
     state.items = result.items || [];
     setWhale(result.msg || "");
     render(state.items, "");
   } catch (err) {
     if (err && err.name === "AbortError") return;
+    foldTrace();
     setStatus(t("fail"));
-    document.getElementById("trace").classList.remove("running");
   }
 }
 

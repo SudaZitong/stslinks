@@ -22,17 +22,8 @@ def event_print(ev: dict) -> None:
     if kind == "prompt":
         print()
         show(f"===== {ev.get('title') or ev.get('layer')} =====")
-        show(f"[{ev.get('provider')} / {ev.get('model')} @ {ev.get('base_url')}]")
-        show("--- system（完整提示词，未隐藏）---")
-        print(ev.get("system") or "")
-        show("--- user ---")
-        print(ev.get("user") or "")
-        show("--- 思考 / 输出 ---")
         return
     if kind == "think":
-        print(ev.get("text") or "", end="", flush=True)
-        return
-    if kind == "content":
         print(ev.get("text") or "", end="", flush=True)
         return
     if kind == "usage" and ev.get("total_tokens") is not None:

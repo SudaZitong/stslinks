@@ -101,7 +101,7 @@ def api_search(body: SearchIn):
     if body.local or not body.query.strip():
         return search.local_search(body.query, tag=body.tag)
     try:
-        return search.ai_search(body.query)
+        return search.public_result(search.ai_search(body.query))
     except ai.AiError as exc:
         raise HTTPException(503, ai.scrub(exc)) from exc
 
@@ -110,12 +110,29 @@ def _sse(obj: dict) -> str:
     return "data: " + json.dumps(obj, ensure_ascii=False) + "\n\n"
 
 
+def _client_event(ev: dict) -> dict | None:
+    kind = ev.get("type")
+    if kind == "content":
+        return None
+    if kind == "prompt":
+        return {
+            "type": "prompt",
+            "layer": ev.get("layer"),
+            "title": ev.get("title"),
+            "provider": ev.get("provider"),
+            "model": ev.get("model"),
+        }
+    if kind == "done":
+        return {"type": "done", "result": search.public_result(ev.get("result") or {})}
+    return ev
+
+
 @app.post("/api/search/stream")
 def api_search_stream(body: SearchIn):
     query = (body.query or "").strip()
     if body.local or not query:
         def local_gen():
-            yield _sse({"type": "done", "result": search.local_search(query, tag=body.tag)})
+            yield _sse(_client_event({"type": "done", "result": search.local_search(query, tag=body.tag)}))
 
         return StreamingResponse(
             local_gen(),
@@ -149,7 +166,10 @@ def api_search_stream(body: SearchIn):
                 continue
             if ev is None:
                 break
-            yield _sse(ev)
+            pub = _client_event(ev)
+            if pub is None:
+                continue
+            yield _sse(pub)
 
     return StreamingResponse(
         gen(),

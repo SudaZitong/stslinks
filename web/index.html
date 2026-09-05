@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TukJiu Search</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=think-fold">
 </head>
 <body>
   <header>
@@ -22,15 +22,14 @@
   </header>
 
   <p id="status"></p>
-  <p id="whale" class="whale" hidden></p>
-  <aside id="trace" hidden>
-    <div class="trace-head">
-      <strong data-i18n="traceTitle">小鲸鱼运算</strong>
+  <details id="trace" hidden>
+    <summary>
+      <span id="trace-label" data-i18n="traceTitle">思考中</span>
       <span id="trace-phase"></span>
-    </div>
-    <p class="hint trace-note" data-i18n="traceNote">提示词和思考全文展示，不做隐藏。</p>
-    <div id="trace-body"></div>
-  </aside>
+    </summary>
+    <pre id="trace-body"></pre>
+  </details>
+  <p id="whale" class="whale" hidden></p>
   <main id="results"></main>
   <p id="empty" class="hint" hidden data-i18n="empty">说你要干什么。短标签先收窄，再用长描述筛一遍。</p>
 
@@ -67,6 +66,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=open-think"></script>
+  <script src="/static/app.js?v=think-fold"></script>
 </body>
 </html>

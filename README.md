@@ -54,9 +54,11 @@ py -3 cli.py add --title DeepL --url https://www.deepl.com --tags "翻译|工具
 
 ## 网页
 
-- 搜索框为主（搜索 = 小鲸鱼，失败自动本地；仅本地不走接口）
+- 搜索框为主（搜索 = 两层小鲸鱼；失败不改成纯本地。仅本地不走接口）
+- 运算过程全文展示：system / user 提示词、思考、模型输出，不做隐藏
+- 小鲸鱼 `msg` 是人设回复（口语、可调侃）
 - 添加 / 编辑链接
-- 设置里改 base_url、key、model
+- 设置里改 base_url、key、model；勾选「思考过程」时按接口打开 reasoning
 - 中 / EN
 - `py -3 cli.py recat` 整理标签和空描述
 

@@ -17,8 +17,35 @@ def show(content: str) -> None:
     time.sleep(0.05)
 
 
-def think_print(chunk: str) -> None:
-    print(chunk, end="", flush=True)
+def event_print(ev: dict) -> None:
+    kind = ev.get("type")
+    if kind == "prompt":
+        print()
+        show(f"===== {ev.get('title') or ev.get('layer')} =====")
+        show(f"[{ev.get('provider')} / {ev.get('model')} @ {ev.get('base_url')}]")
+        show("--- system（完整提示词，未隐藏）---")
+        print(ev.get("system") or "")
+        show("--- user ---")
+        print(ev.get("user") or "")
+        show("--- 思考 / 输出 ---")
+        return
+    if kind == "think":
+        print(ev.get("text") or "", end="", flush=True)
+        return
+    if kind == "content":
+        print(ev.get("text") or "", end="", flush=True)
+        return
+    if kind == "usage" and ev.get("total_tokens") is not None:
+        print()
+        show(f"本次花销: {ev.get('total_tokens')} tokens")
+        return
+    if kind == "fallback":
+        print()
+        show(f"{ev.get('provider')} 失败，试下一层 {ev.get('next') or '（没有了）'}：{ev.get('error')}")
+        return
+    if kind == "status" and ev.get("text"):
+        print()
+        show(ev["text"])
 
 
 def cmd_search(query: str, local: bool = False) -> int:
@@ -31,7 +58,7 @@ def cmd_search(query: str, local: bool = False) -> int:
     else:
         show("===")
         try:
-            result = search.ai_search(query, on_think=think_print)
+            result = search.ai_search(query, on_event=event_print)
             print()
         except ai.AiError as exc:
             show(str(exc))

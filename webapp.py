@@ -2,12 +2,14 @@
 """网页：收藏夹搜索引擎。"""
 from __future__ import annotations
 
+import json
+import queue
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -101,7 +103,59 @@ def api_search(body: SearchIn):
     try:
         return search.ai_search(body.query)
     except ai.AiError as exc:
-        raise HTTPException(503, str(exc)) from exc
+        raise HTTPException(503, ai.scrub(exc)) from exc
+
+
+def _sse(obj: dict) -> str:
+    return "data: " + json.dumps(obj, ensure_ascii=False) + "\n\n"
+
+
+@app.post("/api/search/stream")
+def api_search_stream(body: SearchIn):
+    query = (body.query or "").strip()
+    if body.local or not query:
+        def local_gen():
+            yield _sse({"type": "done", "result": search.local_search(query, tag=body.tag)})
+
+        return StreamingResponse(
+            local_gen(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    def gen():
+        q: queue.Queue = queue.Queue()
+
+        def on_event(ev: dict) -> None:
+            q.put(ev)
+
+        def run() -> None:
+            try:
+                result = search.ai_search(query, on_event=on_event)
+                q.put({"type": "done", "result": result})
+            except ai.AiError as exc:
+                q.put({"type": "error", "msg": ai.scrub(exc)})
+            except Exception as exc:
+                q.put({"type": "error", "msg": ai.scrub(exc)})
+            finally:
+                q.put(None)
+
+        threading.Thread(target=run, daemon=True).start()
+        while True:
+            try:
+                ev = q.get(timeout=1)
+            except queue.Empty:
+                yield ": ping\n\n"
+                continue
+            if ev is None:
+                break
+            yield _sse(ev)
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/config")

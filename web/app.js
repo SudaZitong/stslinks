@@ -12,7 +12,7 @@ const I18N = {
     fDesc: "描述",
     cancel: "取消",
     save: "保存",
-    setHint: "可加多层接口。当前层先用，失败再试下一层。",
+    setHint: "可加多层接口。当前层先用，失败再试下一层。搜索时提示词和思考全文展示。",
     active: "当前层",
     thinking: "思考过程",
     none: "没有结果。换个说法，或把站点加进收藏。",
@@ -20,6 +20,15 @@ const I18N = {
     keySet: "已保存密钥",
     keyEmpty: "还没有密钥，搜索会走本地",
     searching: "正在搜…",
+    traceTitle: "小鲸鱼运算",
+    traceNote: "提示词和思考全文展示，不做隐藏。",
+    promptLabel: "发给模型的提示词（完整，未隐藏）",
+    thinkLabel: "思考",
+    outLabel: "输出",
+    layerTags: "第一层 · 短标签",
+    layerLinks: "第二层 · 长描述",
+    tokens: "tokens",
+    done: "算完了",
   },
   en: {
     searchPh: "What do you need?",
@@ -34,7 +43,7 @@ const I18N = {
     fDesc: "Notes",
     cancel: "Cancel",
     save: "Save",
-    setHint: "Multiple OpenAI-compatible layers. Active first, then fallback.",
+    setHint: "Multiple OpenAI-compatible layers. Active first, then fallback. Prompts and thinking are shown in full.",
     active: "Active",
     thinking: "Thinking traces",
     none: "Nothing found. Try another query, or add the site.",
@@ -42,6 +51,15 @@ const I18N = {
     keySet: "Key saved",
     keyEmpty: "No API key; search is local",
     searching: "Searching…",
+    traceTitle: "Whale computing",
+    traceNote: "Prompts and thinking are shown in full. Nothing is hidden.",
+    promptLabel: "Prompt sent to the model (complete, unredacted)",
+    thinkLabel: "Thinking",
+    outLabel: "Output",
+    layerTags: "Layer 1 · tags",
+    layerLinks: "Layer 2 · descriptions",
+    tokens: "tokens",
+    done: "Done",
   },
 };
 
@@ -78,6 +96,170 @@ function setHome(on) {
 
 function setStatus(msg) {
   document.getElementById("status").textContent = msg || "";
+}
+
+function setWhale(msg) {
+  const el = document.getElementById("whale");
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+}
+
+function setPhase(text) {
+  document.getElementById("trace-phase").textContent = text || "";
+}
+
+function resetTrace(show) {
+  const el = document.getElementById("trace");
+  const body = document.getElementById("trace-body");
+  body.innerHTML = "";
+  el.hidden = !show;
+  el.classList.toggle("running", !!show);
+  setPhase(show ? t("searching") : "");
+  el._layers = {};
+  el._current = null;
+}
+
+function layerBox(ev) {
+  const root = document.getElementById("trace");
+  const key = String(ev.layer || "x") + ":" + (ev.provider || "") + ":" + (root._layers && Object.keys(root._layers).length);
+  const body = document.getElementById("trace-body");
+  const sec = document.createElement("section");
+  sec.className = "trace-layer";
+  const h = document.createElement("h4");
+  const title = ev.title || (ev.layer === "links" ? t("layerLinks") : t("layerTags"));
+  const meta = [ev.provider, ev.model].filter(Boolean).join(" / ");
+  h.textContent = meta ? `${title} · ${meta}` : title;
+  const details = document.createElement("details");
+  details.open = true;
+  const sum = document.createElement("summary");
+  sum.textContent = t("promptLabel");
+  const sys = document.createElement("pre");
+  sys.className = "trace-sys";
+  sys.textContent = "SYSTEM\n" + (ev.system || "");
+  const usr = document.createElement("pre");
+  usr.className = "trace-usr";
+  usr.textContent = "USER\n" + (ev.user || "");
+  details.append(sum, sys, usr);
+  const thinkWrap = document.createElement("div");
+  thinkWrap.className = "trace-think";
+  thinkWrap.hidden = true;
+  const thinkLab = document.createElement("div");
+  thinkLab.className = "trace-label";
+  thinkLab.textContent = t("thinkLabel");
+  const think = document.createElement("pre");
+  thinkWrap.append(thinkLab, think);
+  const outWrap = document.createElement("div");
+  outWrap.className = "trace-out";
+  outWrap.hidden = true;
+  const outLab = document.createElement("div");
+  outLab.className = "trace-label";
+  outLab.textContent = t("outLabel");
+  const out = document.createElement("pre");
+  outWrap.append(outLab, out);
+  const usage = document.createElement("div");
+  usage.className = "trace-label";
+  sec.append(h, details, thinkWrap, outWrap, usage);
+  body.appendChild(sec);
+  const box = { think, thinkWrap, out, outWrap, usage, el: sec };
+  root._layers[key] = box;
+  root._current = box;
+  think.scrollTop = think.scrollHeight;
+  return box;
+}
+
+function currentLayer() {
+  const root = document.getElementById("trace");
+  return root._current;
+}
+
+function appendPre(pre, wrap, chunk) {
+  wrap.hidden = false;
+  pre.textContent += chunk || "";
+  pre.scrollTop = pre.scrollHeight;
+}
+
+function handleTrace(ev) {
+  const kind = ev.type;
+  if (kind === "status" && ev.text) {
+    setPhase(ev.text);
+    setStatus(ev.text);
+    return;
+  }
+  if (kind === "prompt") {
+    document.getElementById("trace").hidden = false;
+    layerBox(ev);
+    setPhase(ev.title || t("searching"));
+    return;
+  }
+  if (kind === "think") {
+    const box = currentLayer();
+    if (box) appendPre(box.think, box.thinkWrap, ev.text);
+    return;
+  }
+  if (kind === "content") {
+    const box = currentLayer();
+    if (box) appendPre(box.out, box.outWrap, ev.text);
+    return;
+  }
+  if (kind === "usage") {
+    const box = currentLayer();
+    if (box && ev.total_tokens != null) {
+      box.usage.textContent = `${ev.total_tokens} ${t("tokens")}`;
+    }
+    return;
+  }
+  if (kind === "fallback") {
+    const p = document.createElement("p");
+    p.className = "trace-fallback";
+    p.textContent = `${ev.provider || ""} 失败${ev.next ? "，试 " + ev.next : ""}：${ev.error || ""}`;
+    document.getElementById("trace-body").appendChild(p);
+    setStatus(p.textContent);
+  }
+}
+
+function paintTrace(trace) {
+  if (!trace || !trace.length) return;
+  resetTrace(true);
+  document.getElementById("trace").classList.remove("running");
+  for (const step of trace) {
+    handleTrace({ type: "prompt", ...step });
+    if (step.think) handleTrace({ type: "think", text: step.think });
+    if (step.content) handleTrace({ type: "content", text: step.content });
+    if (step.total_tokens != null) handleTrace({ type: "usage", total_tokens: step.total_tokens });
+  }
+}
+
+async function readSSE(res, onEvent, signal) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    if (signal && signal.aborted) {
+      try { await reader.cancel(); } catch (_) { /* ignore */ }
+      throw new DOMException("aborted", "AbortError");
+    }
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const parts = buf.split("\n\n");
+    buf = parts.pop();
+    for (const part of parts) {
+      const line = part.split("\n").find((l) => l.startsWith("data: "));
+      if (!line) continue;
+      let ev;
+      try {
+        ev = JSON.parse(line.slice(6));
+      } catch (_) {
+        continue;
+      }
+      onEvent(ev);
+    }
+  }
 }
 
 function render(items, msg) {
@@ -126,30 +308,72 @@ function render(items, msg) {
   }
 }
 
+let searchAbort = null;
+
 async function runSearch(query, local) {
   query = (query || "").trim();
+  if (searchAbort) searchAbort.abort();
   if (!query) {
     setHome(true);
     document.getElementById("results").innerHTML = "";
     setStatus("");
+    setWhale("");
+    resetTrace(false);
     return;
   }
   document.getElementById("q").value = query;
+  setHome(false);
+  document.getElementById("results").innerHTML = "";
+  setWhale("");
+  resetTrace(!local);
   setStatus(t("searching"));
-  const res = await fetch("/api/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, local: !!local }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok && !local) {
-    setHome(false);
-    setStatus(typeof data.detail === "string" ? data.detail : t("fail"));
-    document.getElementById("results").innerHTML = "";
-    return;
+  const ac = new AbortController();
+  searchAbort = ac;
+  try {
+    const res = await fetch("/api/search/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ query, local: !!local }),
+      signal: ac.signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setStatus(typeof data.detail === "string" ? data.detail : t("fail"));
+      document.getElementById("trace").classList.remove("running");
+      return;
+    }
+    let result = null;
+    await readSSE(res, (ev) => {
+      if (ev.type === "done") {
+        result = ev.result || {};
+        return;
+      }
+      if (ev.type === "error") {
+        result = { error: ev.msg || t("fail") };
+        return;
+      }
+      if (!local) handleTrace(ev);
+    }, ac.signal);
+    document.getElementById("trace").classList.remove("running");
+    if (!result) {
+      setStatus(t("fail"));
+      return;
+    }
+    if (result.error) {
+      setPhase("");
+      setStatus(result.error);
+      return;
+    }
+    if (local) resetTrace(false);
+    else setPhase(t("done"));
+    state.items = result.items || [];
+    setWhale(result.msg || "");
+    render(state.items, "");
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+    setStatus(t("fail"));
+    document.getElementById("trace").classList.remove("running");
   }
-  state.items = data.items || [];
-  render(state.items, data.msg || "");
 }
 
 document.getElementById("search-form").addEventListener("submit", (e) => {

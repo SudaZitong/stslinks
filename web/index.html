@@ -22,8 +22,17 @@
   </header>
 
   <p id="status"></p>
+  <p id="whale" class="whale" hidden></p>
+  <aside id="trace" hidden>
+    <div class="trace-head">
+      <strong data-i18n="traceTitle">小鲸鱼运算</strong>
+      <span id="trace-phase"></span>
+    </div>
+    <p class="hint trace-note" data-i18n="traceNote">提示词和思考全文展示，不做隐藏。</p>
+    <div id="trace-body"></div>
+  </aside>
   <main id="results"></main>
-  <p id="empty" class="hint" hidden data-i18n="empty">在收藏里搜。额度不够会自动改本地匹配。</p>
+  <p id="empty" class="hint" hidden data-i18n="empty">说你要干什么。短标签先收窄，再用长描述筛一遍。</p>
 
   <dialog id="edit-dlg">
     <form method="dialog" id="edit-form">
@@ -58,6 +67,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=open-think"></script>
 </body>
 </html>

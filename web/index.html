@@ -4,11 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TukJiu Search</title>
-  <link rel="stylesheet" href="/static/style.css?v=think-fold">
+  <meta name="theme-color" content="#f5c400">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect rx='8' width='32' height='32' fill='%231c1d21'/%3E%3Ccircle cx='22' cy='12' r='6' fill='%23f5c400'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css?v=beauty">
 </head>
 <body>
   <header>
-    <button type="button" id="btn-home" class="logo">TukJiu</button>
+    <button type="button" id="btn-home" class="logo">TukJiu<span class="dot" aria-hidden="true"></span></button>
     <form id="search-form">
       <input id="q" type="search" autofocus autocomplete="off" data-i18n-placeholder="searchPh">
       <button type="submit" data-i18n="search">搜索</button>
@@ -21,17 +23,19 @@
     </div>
   </header>
 
-  <p id="status"></p>
-  <details id="trace" hidden>
-    <summary>
-      <span id="trace-label" data-i18n="traceTitle">思考中</span>
-      <span id="trace-phase"></span>
-    </summary>
-    <pre id="trace-body"></pre>
-  </details>
-  <p id="whale" class="whale" hidden></p>
-  <main id="results"></main>
-  <p id="empty" class="hint" hidden data-i18n="empty">说你要干什么。短标签先收窄，再用长描述筛一遍。</p>
+  <div id="stage">
+    <p id="status"></p>
+    <details id="trace" hidden>
+      <summary>
+        <span id="trace-label" data-i18n="traceTitle">思考中</span>
+        <span id="trace-phase"></span>
+      </summary>
+      <pre id="trace-body"></pre>
+    </details>
+    <p id="whale" class="whale" hidden></p>
+    <main id="results"></main>
+    <p id="empty" class="hint" hidden data-i18n="empty">说你要干什么。短标签先收窄，再用长描述筛一遍。</p>
+  </div>
 
   <dialog id="edit-dlg">
     <form method="dialog" id="edit-form">
@@ -66,6 +70,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=think-fold"></script>
+  <script src="/static/app.js?v=beauty"></script>
 </body>
 </html>

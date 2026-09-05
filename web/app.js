@@ -24,6 +24,7 @@ const I18N = {
     traceDone: "思考过程",
     layerTags: "第一层 · 短标签",
     layerLinks: "第二层 · 长描述",
+    edit: "编辑",
   },
   en: {
     searchPh: "What do you need?",
@@ -50,6 +51,7 @@ const I18N = {
     traceDone: "Thinking",
     layerTags: "Layer 1 · tags",
     layerLinks: "Layer 2 · descriptions",
+    edit: "Edit",
   },
 };
 
@@ -185,6 +187,14 @@ async function readSSE(res, onEvent, signal) {
   }
 }
 
+function hostOf(url) {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch (_) {
+    return url;
+  }
+}
+
 function render(items, msg) {
   const root = document.getElementById("results");
   root.innerHTML = "";
@@ -200,7 +210,7 @@ function render(items, msg) {
   items.forEach((item, i) => {
     const div = document.createElement("article");
     div.className = "hit";
-    div.style.animationDelay = `${i * 45}ms`;
+    div.style.animationDelay = `${Math.min(i, 12) * 40}ms`;
     const head = document.createElement("div");
     head.className = "head";
     const a = document.createElement("a");
@@ -212,12 +222,13 @@ function render(items, msg) {
     const ed = document.createElement("button");
     ed.className = "edit";
     ed.type = "button";
-    ed.textContent = "编辑";
+    ed.textContent = t("edit");
     ed.addEventListener("click", () => openEdit(item));
     head.append(a, ed);
     const url = document.createElement("div");
     url.className = "url";
-    url.textContent = item.url;
+    url.textContent = hostOf(item.url);
+    url.title = item.url;
     const desc = document.createElement("div");
     desc.className = "desc";
     desc.textContent = item.desc || "";

@@ -99,10 +99,7 @@ def api_search(body: SearchIn):
     try:
         return search.ai_search(body.query)
     except ai.AiError as exc:
-        result = search.local_search(body.query, tag=body.tag)
-        result["msg"] = f"{exc} 已改用本地搜索。"
-        result["mode"] = "local-fallback"
-        return result
+        raise HTTPException(503, str(exc)) from exc
 
 
 @app.get("/api/config")

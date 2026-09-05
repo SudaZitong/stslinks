@@ -8,50 +8,48 @@ def local_search(query: str, tag: str | None = None) -> dict:
     return {
         "ok": bool(hits),
         "mode": "local",
-        "msg": f"本地 {len(hits)} 条" if hits else "收藏里没有类似的。换个说法，或去浏览器搜。",
+        "msg": f"本地 {len(hits)} 条" if hits else "收藏里对不上。",
         "tags": [tag] if tag else [],
         "items": hits,
     }
 
 
 def ai_search(query: str, on_think=None) -> dict:
-    """先本地打分，有额度再让模型从候选里挑。没额度就只出本地结果。"""
-    local_hits = db.keyword_search(query)
-    try:
-        pool = local_hits[:40]
-        if len(pool) < 5:
-            tags_res = ai.pick_tags(query, on_think=on_think)
-            extra = db.filter_by_tags(tags_res.get("tags") or [], tags_res.get("mode") or "or")
-            seen = {x["id"] for x in pool}
-            for item in extra:
-                if item["id"] not in seen:
-                    pool.append(item)
-                    seen.add(item["id"])
-        if not pool:
-            return {
-                "ok": False,
-                "mode": "ai",
-                "msg": "收藏里对不上。可以换关键词，或把新站添加进来。",
-                "tags": [],
-                "items": [],
-            }
-        picked = ai.pick_links(query, pool, on_think=on_think)
-        by_id = {c["id"]: c for c in pool}
-        items = [by_id[i] for i in picked["links"] if i in by_id]
-        if not items:
-            items = pool[:15]
+    """原设计：短标签第一层收窄，长描述第二层筛选。"""
+    tags_res = ai.pick_tags(query, on_think=on_think)
+    if not tags_res["ok"]:
         return {
-            "ok": True,
+            "ok": False,
             "mode": "ai",
-            "msg": picked.get("msg") or "",
-            "tags": [],
-            "items": items,
+            "msg": tags_res.get("msg") or "短标签对不上。",
+            "tags": tags_res.get("tags") or [],
+            "items": [],
         }
-    except ai.AiError as exc:
+    candidates = db.filter_by_tags(tags_res["tags"], tags_res["mode"])
+    if not candidates:
         return {
-            "ok": bool(local_hits),
-            "mode": "local-fallback",
-            "msg": f"{exc} 先给你本地结果。",
-            "tags": [],
-            "items": local_hits,
+            "ok": False,
+            "mode": "ai",
+            "msg": tags_res.get("msg") or "这几个标签下面是空的。",
+            "tags": tags_res["tags"],
+            "items": [],
         }
+    picked = ai.pick_links(query, candidates, on_think=on_think)
+    by_id = {c["id"]: c for c in candidates}
+    items = [by_id[i] for i in picked["links"] if i in by_id]
+    if not items:
+        return {
+            "ok": False,
+            "mode": "ai",
+            "msg": picked.get("msg") or "长描述对过一遍，没有真符合的。",
+            "tags": tags_res["tags"],
+            "items": [],
+        }
+    return {
+        "ok": True,
+        "mode": "ai",
+        "msg": picked.get("msg") or tags_res.get("msg") or "",
+        "tags": tags_res["tags"],
+        "tag_mode": tags_res["mode"],
+        "items": items,
+    }

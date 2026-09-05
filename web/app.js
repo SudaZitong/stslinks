@@ -5,7 +5,7 @@ const I18N = {
     local: "仅本地",
     add: "添加",
     settings: "设置",
-    empty: "在收藏里搜。额度不够会自动改成本地匹配。",
+    empty: "说你要干什么。短标签先收窄，再用长描述筛一遍。",
     editTitle: "链接",
     fTitle: "标题",
     fTags: "标签",
@@ -15,6 +15,7 @@ const I18N = {
     setHint: "任意 OpenAI 兼容接口。换模型改 base_url、key、model。",
     thinking: "思考过程",
     none: "没有结果。换个说法，或把站点加进收藏。",
+    fail: "模型没跑起来（多半是欠费或 key）。设计上仍走两层 AI，不是改成纯本地。",
     keySet: "已保存密钥",
     keyEmpty: "还没有密钥，搜索会走本地",
     searching: "正在搜…",
@@ -25,7 +26,7 @@ const I18N = {
     local: "Local only",
     add: "Add",
     settings: "Settings",
-    empty: "Search your bookmarks. Falls back to local if the API is out of credit.",
+    empty: "Say what you need. Short tags first, long descriptions second.",
     editTitle: "Link",
     fTitle: "Title",
     fTags: "Tags",
@@ -35,6 +36,7 @@ const I18N = {
     setHint: "Any OpenAI-compatible API.",
     thinking: "Thinking traces",
     none: "Nothing found. Try another query, or add the site.",
+    fail: "Model call failed (billing or key). The product is still two-layer AI.",
     keySet: "Key saved",
     keyEmpty: "No API key; search is local",
     searching: "Searching…",
@@ -137,7 +139,13 @@ async function runSearch(query, local) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, local: !!local }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !local) {
+    setHome(false);
+    setStatus(typeof data.detail === "string" ? data.detail : t("fail"));
+    document.getElementById("results").innerHTML = "";
+    return;
+  }
   state.items = data.items || [];
   render(state.items, data.msg || "");
 }

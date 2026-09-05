@@ -7,17 +7,18 @@ from openai import OpenAI
 
 from . import config, db
 
-TAG_PROMPT = """你是收藏夹助手「小鲸鱼」。根据用户需求，从给定标签里选出相关标签。
-需求模糊时可以多给几个可能有用的标签，并在 msg 里说明偏差。
-只输出 JSON，字段：tags（字符串数组）, mode（or 或 and）, ok（true/false）, msg（评价，可调侃）。
-tags 为空则 ok 必须为 false。
-mode=or 表示命中任一标签；and 表示必须同时包含所有标签。
+TAG_PROMPT = """你是收藏夹助手「小鲸鱼」。
+第一层：只用短标签做快速匹配，从给定标签里选出相关的。标签很粗，宁可 or 多给几个，不要用 and，除非用户明确说必须同时满足。
+需求模糊时多给可能用到的标签，在 msg 里说明偏差。
+只输出 JSON：tags（字符串数组）, mode（or 或 and）, ok（true/false）, msg（可以调侃）。
+tags 为空则 ok=false。
 """
 
-LINK_PROMPT = """你是收藏夹助手「小鲸鱼」。根据用户需求，从给定条目（id、title、desc）里选出相关链接 id。
-需求模糊时可以多给几个，并在 msg 里说明。
-只输出 JSON，字段：links（整数 id 数组）, ok（true/false）, msg。
-links 为空则 ok 必须为 false。找不到时在 msg 里给搜索关键词建议。
+LINK_PROMPT = """你是收藏夹助手「小鲸鱼」。
+第二层：下面每条都有认真写的长描述。请根据描述判断是不是用户真要的东西，不要只看标题党，也不要因为标签沾边就全收。
+选出相关链接的 id。模糊需求可以多给几个，并在 msg 里说明。
+只输出 JSON：links（整数 id 数组）, ok（true/false）, msg。
+links 为空则 ok=false。找不到时在 msg 里给浏览器搜索词。
 """
 
 

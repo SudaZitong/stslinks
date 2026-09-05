@@ -35,8 +35,7 @@ def cmd_search(query: str, local: bool = False) -> int:
             print()
         except ai.AiError as exc:
             show(str(exc))
-            show("改用本地搜索。")
-            result = search.local_search(query)
+            return 1
     show(result.get("msg") or "")
     if result.get("tags"):
         show("标签：" + "、".join(result["tags"]))

@@ -1,0 +1,13 @@
+config.json
+api-key.txt
+data.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+.vscode/
+_legacy/stslinks.html
+_legacy/*.js
+_legacy/*.json
+_legacy/inspect_db.py

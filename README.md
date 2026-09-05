@@ -26,23 +26,27 @@ py -3 cli.py add --title DeepL --url https://www.deepl.com --tags "翻译|工具
 
 复制 `config.example.json` 为 `config.json`。旧的 `api-key.txt` 会在首次启动时自动迁进去。
 
-```json
-{
-  "api_key": "",
-  "base_url": "https://api.deepseek.com",
-  "model": "deepseek-v4-flash",
-  "thinking": true
-}
-```
-
-换服务商只改这三项，例如 xAI：
+`config.json` 里可以放多层接口。`active` 先用，失败再试列表里下一层。
 
 ```json
 {
-  "api_key": "",
-  "base_url": "https://api.x.ai/v1",
-  "model": "grok-4.5",
-  "thinking": false
+  "active": "uuapi",
+  "providers": [
+    {
+      "name": "uuapi",
+      "base_url": "https://uuapi.io/v1",
+      "model": "gpt-5.6-terra",
+      "api_key": "",
+      "thinking": false
+    },
+    {
+      "name": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-v4-flash",
+      "api_key": "",
+      "thinking": true
+    }
+  ]
 }
 ```
 

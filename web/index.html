@@ -42,10 +42,13 @@
   <dialog id="set-dlg">
     <form method="dialog" id="set-form">
       <h3 data-i18n="settings">设置</h3>
-      <p class="hint" data-i18n="setHint">任意 OpenAI 兼容接口。换模型改 base_url、key、model。</p>
-      <label>Base URL<input name="base_url" placeholder="https://api.deepseek.com"></label>
+      <p class="hint" data-i18n="setHint">可加多层 OpenAI 兼容接口。当前层先用，失败再试下一层。</p>
+      <label data-i18n="active">当前层</label>
+      <select name="active" id="cfg-active"></select>
+      <label>名称<input name="name" placeholder="uuapi"></label>
+      <label>Base URL<input name="base_url" placeholder="https://uuapi.io/v1"></label>
       <label>API Key<input name="api_key" type="password" autocomplete="off"></label>
-      <label>Model<input name="model" placeholder="deepseek-v4-flash"></label>
+      <label>Model<input name="model" placeholder="gpt-5.6-terra"></label>
       <label class="check"><input type="checkbox" name="thinking"> <span data-i18n="thinking">思考过程</span></label>
       <p id="key-state"></p>
       <menu>

@@ -1,8 +1,21 @@
 {
-  "api_key": "",
-  "base_url": "https://api.deepseek.com",
-  "model": "deepseek-v4-flash",
-  "thinking": true,
+  "active": "uuapi",
+  "providers": [
+    {
+      "name": "uuapi",
+      "base_url": "https://uuapi.io/v1",
+      "model": "gpt-5.6-terra",
+      "api_key": "",
+      "thinking": false
+    },
+    {
+      "name": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-v4-flash",
+      "api_key": "",
+      "thinking": true
+    }
+  ],
   "host": "127.0.0.1",
   "port": 8765,
   "db_path": "data.db",

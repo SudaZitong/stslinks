@@ -44,24 +44,19 @@ def parse_json(text: str) -> dict:
     return data
 
 
-def _client(cfg: dict) -> OpenAI:
-    key = (cfg.get("api_key") or "").strip()
-    if not key:
-        raise AiError("还没有 API Key。请在网页设置里填写，或编辑 config.json。")
-    base = (cfg.get("base_url") or "").strip() or "https://api.deepseek.com"
-    return OpenAI(api_key=key, base_url=base)
+def _client(api_key: str, base_url: str) -> OpenAI:
+    return OpenAI(api_key=api_key, base_url=base_url, timeout=60.0)
 
 
-def complete(system: str, user: str, on_think=None) -> str:
-    cfg = config.load()
-    client = _client(cfg)
-    model = cfg.get("model") or "deepseek-v4-flash"
+def _complete_one(prov: dict, system: str, user: str, on_think=None) -> str:
+    client = _client(prov["api_key"], prov["base_url"])
+    model = prov.get("model") or "gpt-4o-mini"
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
     attempts = []
-    if cfg.get("thinking"):
+    if prov.get("thinking"):
         attempts.append({"extra_body": {"thinking": {"type": "enabled"}}, "reasoning_effort": "low"})
     attempts.append({})
     last_err = None
@@ -88,7 +83,22 @@ def complete(system: str, user: str, on_think=None) -> str:
         except Exception as exc:
             last_err = exc
             continue
-    raise AiError(f"调用模型失败：{last_err}") from last_err
+    raise AiError(f"{prov.get('name')}: {last_err}") from last_err
+
+
+def complete(system: str, user: str, on_think=None) -> str:
+    cfg = config.load()
+    chain = config.provider_chain(cfg)
+    if not chain:
+        raise AiError("还没有可用的 API。在设置里加一层 base_url + key + model。")
+    errors = []
+    for prov in chain:
+        try:
+            return _complete_one(prov, system, user, on_think=on_think)
+        except Exception as exc:
+            errors.append(f"{prov.get('name')}: {exc}")
+            continue
+    raise AiError("上层接口都失败了：" + " | ".join(errors))
 
 
 def pick_tags(query: str, on_think=None) -> dict:

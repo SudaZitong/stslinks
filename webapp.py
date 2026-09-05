@@ -53,6 +53,8 @@ class ConfigIn(BaseModel):
     model: str | None = None
     thinking: bool | None = None
     locale: str | None = None
+    name: str | None = None
+    active: str | None = None
 
 
 @app.get("/")
@@ -111,13 +113,38 @@ def api_config_get():
 def api_config_put(body: ConfigIn):
     data = config.load()
     payload = body.model_dump(exclude_none=True)
-    if payload.get("api_key") == "":
-        pass
-    elif payload.get("api_key"):
-        data["api_key"] = payload["api_key"]
-    for key in ("base_url", "model", "thinking", "locale"):
-        if key in payload and payload[key] is not None:
-            data[key] = payload[key]
+    if payload.get("locale"):
+        data["locale"] = payload["locale"]
+    if payload.get("name") and (payload.get("base_url") or payload.get("model") or payload.get("api_key")):
+        current = next((p for p in data.get("providers") or [] if p["name"] == payload["name"]), {})
+        data = config.upsert_provider(
+            data,
+            name=payload["name"],
+            base_url=payload.get("base_url") or current.get("base_url") or "",
+            model=payload.get("model") or current.get("model") or "",
+            api_key=payload.get("api_key") or "",
+            thinking=payload.get("thinking"),
+        )
+    elif payload.get("active"):
+        names = {p["name"] for p in data.get("providers") or []}
+        if payload["active"] not in names:
+            raise HTTPException(400, "没有这一层 API")
+        data["active"] = payload["active"]
+    else:
+        if payload.get("api_key"):
+            data["api_key"] = payload["api_key"]
+        for key in ("base_url", "model", "thinking"):
+            if key in payload:
+                data[key] = payload[key]
+        if data.get("active"):
+            data = config.upsert_provider(
+                data,
+                name=data["active"],
+                base_url=data.get("base_url") or "",
+                model=data.get("model") or "",
+                api_key=payload.get("api_key") or "",
+                thinking=data.get("thinking"),
+            )
     return config.masked(config.save(data))
 
 

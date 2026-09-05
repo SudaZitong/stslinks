@@ -12,7 +12,8 @@ const I18N = {
     fDesc: "描述",
     cancel: "取消",
     save: "保存",
-    setHint: "任意 OpenAI 兼容接口。换模型改 base_url、key、model。",
+    setHint: "可加多层接口。当前层先用，失败再试下一层。",
+    active: "当前层",
     thinking: "思考过程",
     none: "没有结果。换个说法，或把站点加进收藏。",
     fail: "模型没跑起来（多半是欠费或 key）。设计上仍走两层 AI，不是改成纯本地。",
@@ -33,7 +34,8 @@ const I18N = {
     fDesc: "Notes",
     cancel: "Cancel",
     save: "Save",
-    setHint: "Any OpenAI-compatible API.",
+    setHint: "Multiple OpenAI-compatible layers. Active first, then fallback.",
+    active: "Active",
     thinking: "Thinking traces",
     none: "Nothing found. Try another query, or add the site.",
     fail: "Model call failed (billing or key). The product is still two-layer AI.",
@@ -200,20 +202,44 @@ editForm.addEventListener("submit", async (e) => {
 
 const setDlg = document.getElementById("set-dlg");
 const setForm = document.getElementById("set-form");
+function fillProviders(cfg) {
+  const sel = document.getElementById("cfg-active");
+  sel.innerHTML = "";
+  for (const p of cfg.providers || []) {
+    const opt = document.createElement("option");
+    opt.value = p.name;
+    opt.textContent = `${p.name} · ${p.model}`;
+    opt.selected = p.name === cfg.active;
+    sel.appendChild(opt);
+  }
+  const current = (cfg.providers || []).find((p) => p.name === cfg.active) || cfg.providers?.[0];
+  setForm.name.value = current?.name || "";
+  setForm.base_url.value = current?.base_url || cfg.base_url || "";
+  setForm.model.value = current?.model || cfg.model || "";
+  setForm.thinking.checked = !!(current?.thinking ?? cfg.thinking);
+  setForm.api_key.value = "";
+  setForm.api_key.placeholder = current?.api_key_set ? current.api_key_masked : "";
+  document.getElementById("key-state").textContent = current?.api_key_set ? t("keySet") : t("keyEmpty");
+}
+
 document.getElementById("btn-settings").onclick = async () => {
   const cfg = await (await fetch("/api/config")).json();
-  setForm.base_url.value = cfg.base_url || "";
-  setForm.model.value = cfg.model || "";
-  setForm.thinking.checked = !!cfg.thinking;
-  setForm.api_key.value = "";
-  setForm.api_key.placeholder = cfg.api_key_set ? cfg.api_key_masked : "";
-  document.getElementById("key-state").textContent = cfg.api_key_set ? t("keySet") : t("keyEmpty");
+  fillProviders(cfg);
   setDlg.showModal();
 };
+document.getElementById("cfg-active").addEventListener("change", async (e) => {
+  await fetch("/api/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ active: e.target.value }),
+  });
+  fillProviders(await (await fetch("/api/config")).json());
+});
 setForm.addEventListener("submit", async (e) => {
   if (e.submitter && e.submitter.value === "cancel") return;
   e.preventDefault();
   const body = {
+    name: setForm.name.value.trim() || "default",
     base_url: setForm.base_url.value,
     model: setForm.model.value,
     thinking: setForm.thinking.checked,
